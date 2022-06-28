@@ -60,8 +60,8 @@ export class Health extends Component {
     this.current -= evt.data.amount;
 
     if (this.current <= 0) {
-      this.entity.appearance.char = "%";
       this.entity.IsDead = true;
+      this.entity.appearance.char = "%";
       this.entity.remove("Ai");
       this.entity.remove("IsBlocking");
       this.entity.add("IsDead");

@@ -278,7 +278,7 @@ export const ScrollFireball = {
       type: "RequiresTarget",
       properties: {
         acquired: "MANUAL",
-        aoeRange: 1,
+        aoeRange: 2,
       },
     },
   ],

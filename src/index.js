@@ -1,8 +1,6 @@
-"use strict";
-
 import { get, sample, times } from "lodash";
 import "./lib/canvas.js";
-import { grid, pxToCell } from "./lib/canvas.js";
+import { grid, pxToCell } from "./lib/canvas";
 import { toCell, toLocId, circle } from "./lib/grid";
 import {
   addCache,
@@ -12,40 +10,23 @@ import {
   readCacheSet,
   serializeCache,
 } from "./state/cache";
-import { createDungeon } from "./lib/dungeon.js";
-import { ai } from "./systems/ai.js";
-import { fov } from "./systems/fov.js";
-import { movement } from "./systems/movement.js";
-import { render } from "./systems/render.js";
+import { createDungeon } from "./lib/dungeon";
+import { ai } from "./systems/ai";
+import { animation } from "./systems/animation";
+import { effects } from "./systems/effects";
+import { fov } from "./systems/fov";
+import { movement } from "./systems/movement";
+import { render } from "./systems/render";
 import { targeting } from "./systems/targeting";
 import ecs from "./state/ecs";
-import { effects } from "./systems/effects";
 import { IsInFov, Move, Position, Ai } from "./state/components";
 
-export const playerName = window.prompt("What's the name of your adventurer?");
 export let messageLog = ["", "You find yourself in a dark room...", ""];
 export const addLog = (text) => {
   messageLog.unshift(text);
 };
 
-const enemiesInFOV = ecs.createQuery({ all: [IsInFov, Ai] });
-
-const newGame = () => {
-  for (let item of ecs.entities.all) {
-    item.destroy();
-  }
-
-  clearCache();
-
-  userInput = null;
-  playerTurn = true;
-  gameState = "GAME";
-  selectedInventoryIndex = 0;
-
-  messageLog = ["", "You find yourself in a dark room...", ""];
-
-  initGame();
-};
+export let playerName = prompt("What's the name of your adventurer?");
 
 const saveGame = () => {
   const gameSaveData = {
@@ -68,7 +49,6 @@ const loadGame = () => {
   for (let entity of ecs.entities.all) {
     entity.destroy();
   }
-
   clearCache();
 
   ecs.deserialize(data.ecs);
@@ -84,6 +64,24 @@ const loadGame = () => {
   messageLog = data.messageLog;
   addLog("Game loaded");
 };
+
+const newGame = () => {
+  for (let item of ecs.entities.all) {
+    item.destroy();
+  }
+  clearCache();
+
+  userInput = null;
+  playerTurn = true;
+  gameState = "GAME";
+  selectedInventoryIndex = 0;
+
+  messageLog = ["", "You find yourself in a dark room...", ""];
+
+  initGame();
+};
+
+const enemiesInFOV = ecs.createQuery({ all: [IsInFov, Ai] });
 
 function generateRandomNumber(min, max) {
   return Math.random() * (max - min) + min;
@@ -105,27 +103,27 @@ const createDungeonLevel = ({
     (x) => x.sprite === "FLOOR"
   );
 
-  times(generateRandomNumber(3, 5), () => {
+  times(generateRandomNumber(4, 6), () => {
     const tile = sample(openTiles);
     ecs.createPrefab("Goblin").add(Position, tile);
   });
 
-  times(generateRandomNumber(1, 3), () => {
+  times(generateRandomNumber(2, 3), () => {
     const tile = sample(openTiles);
     ecs.createPrefab("HealthPotion").add(Position, tile);
   });
 
-  times(generateRandomNumber(2, 6), () => {
+  times(generateRandomNumber(2, 3), () => {
     const tile = sample(openTiles);
     ecs.createPrefab("ScrollLightning").add(Position, tile);
   });
 
-  times(generateRandomNumber(5, 9), () => {
+  times(generateRandomNumber(7, 10), () => {
     const tile = sample(openTiles);
     ecs.createPrefab("ScrollParalyze").add(Position, tile);
   });
 
-  times(generateRandomNumber(2, 5), () => {
+  times(generateRandomNumber(1, 3), () => {
     const tile = sample(openTiles);
     ecs.createPrefab("ScrollFireball").add(Position, tile);
   });
@@ -186,9 +184,7 @@ const goToDungeonLevel = (level) => {
 };
 
 const initGame = () => {
-  const { stairsDown } = createDungeonLevel({
-    createStairsUp: false,
-  });
+  const { stairsDown } = createDungeonLevel({ createStairsUp: false });
 
   player = ecs.createPrefab("Player");
 
@@ -205,9 +201,10 @@ const initGame = () => {
 let player = {};
 let userInput = null;
 let playerTurn = true;
-
 export let gameState = "GAME";
 export let selectedInventoryIndex = 0;
+
+initGame();
 
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Shift") {
@@ -215,15 +212,13 @@ document.addEventListener("keydown", (ev) => {
   }
 });
 
-initGame();
-
 const processUserInput = () => {
-  if (userInput === "n") {
-    newGame();
-  }
-
   if (userInput === "l") {
     loadGame();
+  }
+
+  if (userInput === "n") {
+    newGame();
   }
 
   if (userInput === "s") {
@@ -267,7 +262,6 @@ const processUserInput = () => {
     if (userInput === "ArrowLeft") {
       player.add(Move, { x: -1, y: 0, z: readCache("z") });
     }
-
     if (userInput === "e") {
       let pickupFound = false;
       readCacheSet("entitiesAtLocation", toLocId(player.position)).forEach(
@@ -284,17 +278,19 @@ const processUserInput = () => {
         addLog("There is nothing to pick up here");
       }
     }
-
     if (userInput === "i") {
       gameState = "INVENTORY";
+    }
+
+    if (userInput === "z") {
+      gameState = "TARGETING";
     }
 
     userInput = null;
   }
 
   if (gameState === "TARGETING") {
-    if (userInput === "Escape") {
-      player.remove("TargetingItem");
+    if (userInput === "z" || userInput === "Escape") {
       gameState = "GAME";
     }
 
@@ -315,6 +311,13 @@ const processUserInput = () => {
       selectedInventoryIndex += 1;
       if (selectedInventoryIndex > player.inventory.list.length - 1)
         selectedInventoryIndex = player.inventory.list.length - 1;
+    }
+
+    if (userInput === "g") {
+      if (player.inventory.list.length) {
+        addLog(`You drop a ${player.inventory.list[0].description.name}`);
+        player.fireEvent("drop", player.inventory.list[0]);
+      }
     }
 
     if (userInput === "e") {
@@ -357,18 +360,13 @@ const processUserInput = () => {
       }
     }
 
-    if (userInput === "g") {
-      if (player.inventory.list.length) {
-        addLog(`You drop a ${player.inventory.list[0].description.name}`);
-        player.fireEvent("drop", player.inventory.list[0]);
-      }
-    }
-
     userInput = null;
   }
 };
 
 const update = () => {
+  animation();
+
   if (player.isDead) {
     if (gameState !== "GAMEOVER") {
       addLog("You are dead.");
@@ -432,6 +430,7 @@ canvas.onclick = (e) => {
   readCacheSet("entitiesAtLocation", locId).forEach((eId) => {
     const entity = ecs.getEntity(eId);
 
+    // Only do this during development
     if (process.env.NODE_ENV === "development") {
       console.log(
         `${get(entity, "appearance.char", "?")} ${get(

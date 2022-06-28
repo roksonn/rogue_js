@@ -117,6 +117,7 @@ export const clearCanvas = (x, y, w, h) => {
 
   ctx.clearRect(posX, posY, width, height);
 };
+
 const drawBackground = ({ color, position }) => {
   if (color === "transparent") return;
 

@@ -19761,7 +19761,7 @@ var ScrollFireball = {
     type: "RequiresTarget",
     properties: {
       acquired: "MANUAL",
-      aoeRange: 1
+      aoeRange: 2
     }
   }]
 };
@@ -22423,8 +22423,8 @@ var Health = /*#__PURE__*/function (_Component8) {
       this.current -= evt.data.amount;
 
       if (this.current <= 0) {
-        this.entity.appearance.char = "%";
         this.entity.IsDead = true;
+        this.entity.appearance.char = "%";
         this.entity.remove("Ai");
         this.entity.remove("IsBlocking");
         this.entity.add("IsDead");
@@ -25665,7 +25665,160 @@ var ai = function ai(player) {
 };
 
 exports.ai = ai;
-},{"../state/ecs.js":"src/state/ecs.js","../state/components.js":"src/state/components.js","../lib/pathfinding":"src/lib/pathfinding.js","../state/cache":"src/state/cache.js"}],"src/lib/fov.js":[function(require,module,exports) {
+},{"../state/ecs.js":"src/state/ecs.js","../state/components.js":"src/state/components.js","../lib/pathfinding":"src/lib/pathfinding.js","../state/cache":"src/state/cache.js"}],"src/systems/animation.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.animation = void 0;
+
+var _lodash = require("lodash");
+
+var _ecs = _interopRequireDefault(require("../state/ecs"));
+
+var _canvas = require("../lib/canvas");
+
+var _index = require("../index");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var _require = require("../state/components"),
+    Animate = _require.Animate;
+
+var animatingEntities = _ecs.default.createQuery({
+  all: [Animate]
+});
+
+var hexToRgb = function hexToRgb(hex) {
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : {};
+};
+
+var animation = function animation() {
+  if (_index.gameState !== "GAME") {
+    return;
+  }
+
+  animatingEntities.get().forEach(function (entity) {
+    var animate = (0, _lodash.last)(entity.animate);
+
+    var _hexToRgb = hexToRgb(animate.color),
+        _hexToRgb$r = _hexToRgb.r,
+        r = _hexToRgb$r === void 0 ? 255 : _hexToRgb$r,
+        _hexToRgb$g = _hexToRgb.g,
+        g = _hexToRgb$g === void 0 ? 255 : _hexToRgb$g,
+        _hexToRgb$b = _hexToRgb.b,
+        b = _hexToRgb$b === void 0 ? 255 : _hexToRgb$b;
+
+    var time = new Date(); // set animation startTime
+
+    if (!animate.startTime) {
+      entity.fireEvent("set-start-time", {
+        time: time
+      });
+    }
+
+    var frameTime = time - animate.startTime; // end animation when complete
+
+    if (frameTime > animate.duration) {
+      return entity.remove("Animate");
+    }
+
+    var framePercent = frameTime / animate.duration; // do the animation
+    // clear the cell first
+
+    (0, _canvas.clearCanvas)(entity.position.x, entity.position.y, 1, 1); // redraw the existing entity
+
+    (0, _canvas.drawCellImage)(entity); // draw the animation over top
+
+    (0, _canvas.drawCell)({
+      appearance: {
+        char: animate.char || entity.appearance.char,
+        color: "rgba(".concat(r, ", ").concat(g, ", ").concat(b, ", ").concat(1 - framePercent, ")"),
+        background: "transparent"
+      },
+      position: entity.position
+    });
+  });
+};
+
+exports.animation = animation;
+},{"lodash":"node_modules/lodash/lodash.js","../state/ecs":"src/state/ecs.js","../lib/canvas":"src/lib/canvas.js","../state/components":"src/state/components.js","../index":"src/index.js"}],"src/systems/effects.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.effects = void 0;
+
+var _ecs = _interopRequireDefault(require("../state/ecs"));
+
+var _components = require("../state/components");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+var activeEffectsEntities = _ecs.default.createQuery({
+  all: [_components.ActiveEffects]
+});
+
+var effects = function effects() {
+  activeEffectsEntities.get().forEach(function (entity) {
+    entity.activeEffects.forEach(function (c) {
+      if (entity[c.component]) {
+        entity[c.component].current += c.delta;
+
+        if (entity[c.component].current > entity[c.component].max) {
+          entity[c.component].current = entity[c.component].max;
+        }
+      }
+
+      if (c.events.length) {
+        c.events.forEach(function (event) {
+          return entity.fireEvent(event.name, event.args);
+        });
+      } // handle addComponents
+
+
+      if (c.addComponents.length) {
+        c.addComponents.forEach(function (component) {
+          if (!entity.has(component.name)) {
+            entity.add(component.name, component.properties);
+          }
+        });
+      }
+
+      entity.add("Animate", _objectSpread({}, c.animate));
+
+      if (!c.duration) {
+        c.remove();
+
+        if (c.addComponents.length) {
+          c.addComponents.forEach(function (component) {
+            if (entity.has(component.name)) {
+              entity.remove(component.name, component.properties);
+            }
+          });
+        }
+      } else {
+        c.duration -= 1;
+      }
+    });
+  });
+};
+
+exports.effects = effects;
+},{"../state/ecs":"src/state/ecs.js","../state/components":"src/state/components.js"}],"src/lib/fov.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -26088,7 +26241,9 @@ var renderMap = function renderMap() {
       (0, _canvas.drawCellImage)(entity);
     } else {
       entity.visible = false;
-      (0, _canvas.drawCellImage)(entity);
+      (0, _canvas.drawCell)(entity, {
+        color: "#100"
+      });
     }
   });
 };
@@ -26430,77 +26585,7 @@ var targeting = function targeting() {
 };
 
 exports.targeting = targeting;
-},{"../state/ecs":"src/state/ecs.js","../index":"src/index.js","../state/cache":"src/state/cache.js","../state/components":"src/state/components.js"}],"src/systems/effects.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.effects = void 0;
-
-var _ecs = _interopRequireDefault(require("../state/ecs"));
-
-var _components = require("../state/components");
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
-
-function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-var activeEffectsEntities = _ecs.default.createQuery({
-  all: [_components.ActiveEffects]
-});
-
-var effects = function effects() {
-  activeEffectsEntities.get().forEach(function (entity) {
-    entity.activeEffects.forEach(function (c) {
-      if (entity[c.component]) {
-        entity[c.component].current += c.delta;
-
-        if (entity[c.component].current > entity[c.component].max) {
-          entity[c.component].current = entity[c.component].max;
-        }
-      }
-
-      if (c.events.length) {
-        c.events.forEach(function (event) {
-          return entity.fireEvent(event.name, event.args);
-        });
-      } // handle addComponents
-
-
-      if (c.addComponents.length) {
-        c.addComponents.forEach(function (component) {
-          if (!entity.has(component.name)) {
-            entity.add(component.name, component.properties);
-          }
-        });
-      }
-
-      entity.add("Animate", _objectSpread({}, c.animate));
-
-      if (!c.duration) {
-        c.remove();
-
-        if (c.addComponents.length) {
-          c.addComponents.forEach(function (component) {
-            if (entity.has(component.name)) {
-              entity.remove(component.name, component.properties);
-            }
-          });
-        }
-      } else {
-        c.duration -= 1;
-      }
-    });
-  });
-};
-
-exports.effects = effects;
-},{"../state/ecs":"src/state/ecs.js","../state/components":"src/state/components.js"}],"src/index.js":[function(require,module,exports) {
+},{"../state/ecs":"src/state/ecs.js","../index":"src/index.js","../state/cache":"src/state/cache.js","../state/components":"src/state/components.js"}],"src/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -26510,27 +26595,31 @@ exports.selectedInventoryIndex = exports.playerName = exports.messageLog = expor
 
 var _lodash = require("lodash");
 
-var _canvas = require("./lib/canvas.js");
+require("./lib/canvas.js");
+
+var _canvas2 = require("./lib/canvas");
 
 var _grid = require("./lib/grid");
 
 var _cache = require("./state/cache");
 
-var _dungeon = require("./lib/dungeon.js");
+var _dungeon = require("./lib/dungeon");
 
-var _ai = require("./systems/ai.js");
+var _ai = require("./systems/ai");
 
-var _fov = require("./systems/fov.js");
+var _animation = require("./systems/animation");
 
-var _movement = require("./systems/movement.js");
+var _effects = require("./systems/effects");
 
-var _render = require("./systems/render.js");
+var _fov = require("./systems/fov");
+
+var _movement = require("./systems/movement");
+
+var _render = require("./systems/render");
 
 var _targeting = require("./systems/targeting");
 
 var _ecs = _interopRequireDefault(require("./state/ecs"));
-
-var _effects = require("./systems/effects");
 
 var _components = require("./state/components");
 
@@ -26564,8 +26653,6 @@ function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o =
 
 function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
 
-var playerName = window.prompt("What's the name of your adventurer?");
-exports.playerName = playerName;
 var messageLog = ["", "You find yourself in a dark room...", ""];
 exports.messageLog = messageLog;
 
@@ -26574,34 +26661,8 @@ var addLog = function addLog(text) {
 };
 
 exports.addLog = addLog;
-
-var enemiesInFOV = _ecs.default.createQuery({
-  all: [_components.IsInFov, _components.Ai]
-});
-
-var newGame = function newGame() {
-  var _iterator = _createForOfIteratorHelper(_ecs.default.entities.all),
-      _step;
-
-  try {
-    for (_iterator.s(); !(_step = _iterator.n()).done;) {
-      var item = _step.value;
-      item.destroy();
-    }
-  } catch (err) {
-    _iterator.e(err);
-  } finally {
-    _iterator.f();
-  }
-
-  (0, _cache.clearCache)();
-  userInput = null;
-  playerTurn = true;
-  exports.gameState = gameState = "GAME";
-  exports.selectedInventoryIndex = selectedInventoryIndex = 0;
-  exports.messageLog = messageLog = ["", "You find yourself in a dark room...", ""];
-  initGame();
-};
+var playerName = prompt("What's the name of your adventurer?");
+exports.playerName = playerName;
 
 var saveGame = function saveGame() {
   var gameSaveData = {
@@ -26622,18 +26683,18 @@ var loadGame = function loadGame() {
     return;
   }
 
-  var _iterator2 = _createForOfIteratorHelper(_ecs.default.entities.all),
-      _step2;
+  var _iterator = _createForOfIteratorHelper(_ecs.default.entities.all),
+      _step;
 
   try {
-    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-      var entity = _step2.value;
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var entity = _step.value;
       entity.destroy();
     }
   } catch (err) {
-    _iterator2.e(err);
+    _iterator.e(err);
   } finally {
-    _iterator2.f();
+    _iterator.f();
   }
 
   (0, _cache.clearCache)();
@@ -26650,6 +26711,34 @@ var loadGame = function loadGame() {
   addLog("Game loaded");
 };
 
+var newGame = function newGame() {
+  var _iterator2 = _createForOfIteratorHelper(_ecs.default.entities.all),
+      _step2;
+
+  try {
+    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+      var item = _step2.value;
+      item.destroy();
+    }
+  } catch (err) {
+    _iterator2.e(err);
+  } finally {
+    _iterator2.f();
+  }
+
+  (0, _cache.clearCache)();
+  userInput = null;
+  playerTurn = true;
+  exports.gameState = gameState = "GAME";
+  exports.selectedInventoryIndex = selectedInventoryIndex = 0;
+  exports.messageLog = messageLog = ["", "You find yourself in a dark room...", ""];
+  initGame();
+};
+
+var enemiesInFOV = _ecs.default.createQuery({
+  all: [_components.IsInFov, _components.Ai]
+});
+
 function generateRandomNumber(min, max) {
   return Math.random() * (max - min) + min;
 }
@@ -26662,36 +26751,36 @@ var createDungeonLevel = function createDungeonLevel() {
       createStairsDown = _ref$createStairsDown === void 0 ? true : _ref$createStairsDown;
 
   var dungeon = (0, _dungeon.createDungeon)({
-    x: _canvas.grid.map.x,
-    y: _canvas.grid.map.y,
+    x: _canvas2.grid.map.x,
+    y: _canvas2.grid.map.y,
     z: (0, _cache.readCache)("z"),
-    width: _canvas.grid.map.width,
-    height: _canvas.grid.map.height
+    width: _canvas2.grid.map.width,
+    height: _canvas2.grid.map.height
   });
   var openTiles = Object.values(dungeon.tiles).filter(function (x) {
     return x.sprite === "FLOOR";
   });
-  (0, _lodash.times)(generateRandomNumber(3, 5), function () {
+  (0, _lodash.times)(generateRandomNumber(4, 6), function () {
     var tile = (0, _lodash.sample)(openTiles);
 
     _ecs.default.createPrefab("Goblin").add(_components.Position, tile);
   });
-  (0, _lodash.times)(generateRandomNumber(1, 3), function () {
+  (0, _lodash.times)(generateRandomNumber(2, 3), function () {
     var tile = (0, _lodash.sample)(openTiles);
 
     _ecs.default.createPrefab("HealthPotion").add(_components.Position, tile);
   });
-  (0, _lodash.times)(generateRandomNumber(2, 6), function () {
+  (0, _lodash.times)(generateRandomNumber(2, 3), function () {
     var tile = (0, _lodash.sample)(openTiles);
 
     _ecs.default.createPrefab("ScrollLightning").add(_components.Position, tile);
   });
-  (0, _lodash.times)(generateRandomNumber(5, 9), function () {
+  (0, _lodash.times)(generateRandomNumber(7, 10), function () {
     var tile = (0, _lodash.sample)(openTiles);
 
     _ecs.default.createPrefab("ScrollParalyze").add(_components.Position, tile);
   });
-  (0, _lodash.times)(generateRandomNumber(2, 5), function () {
+  (0, _lodash.times)(generateRandomNumber(1, 3), function () {
     var tile = (0, _lodash.sample)(openTiles);
 
     _ecs.default.createPrefab("ScrollFireball").add(_components.Position, tile);
@@ -26780,20 +26869,20 @@ var gameState = "GAME";
 exports.gameState = gameState;
 var selectedInventoryIndex = 0;
 exports.selectedInventoryIndex = selectedInventoryIndex;
+initGame();
 document.addEventListener("keydown", function (ev) {
   if (ev.key !== "Shift") {
     userInput = ev.key;
   }
 });
-initGame();
 
 var processUserInput = function processUserInput() {
-  if (userInput === "n") {
-    newGame();
-  }
-
   if (userInput === "l") {
     loadGame();
+  }
+
+  if (userInput === "n") {
+    newGame();
   }
 
   if (userInput === "s") {
@@ -26872,12 +26961,15 @@ var processUserInput = function processUserInput() {
       exports.gameState = gameState = "INVENTORY";
     }
 
+    if (userInput === "z") {
+      exports.gameState = gameState = "TARGETING";
+    }
+
     userInput = null;
   }
 
   if (gameState === "TARGETING") {
-    if (userInput === "Escape") {
-      player.remove("TargetingItem");
+    if (userInput === "z" || userInput === "Escape") {
       exports.gameState = gameState = "GAME";
     }
 
@@ -26897,6 +26989,13 @@ var processUserInput = function processUserInput() {
     if (userInput === "ArrowDown") {
       exports.selectedInventoryIndex = selectedInventoryIndex = selectedInventoryIndex + 1;
       if (selectedInventoryIndex > player.inventory.list.length - 1) exports.selectedInventoryIndex = selectedInventoryIndex = player.inventory.list.length - 1;
+    }
+
+    if (userInput === "g") {
+      if (player.inventory.list.length) {
+        addLog("You drop a ".concat(player.inventory.list[0].description.name));
+        player.fireEvent("drop", player.inventory.list[0]);
+      }
     }
 
     if (userInput === "e") {
@@ -26942,18 +27041,13 @@ var processUserInput = function processUserInput() {
       }
     }
 
-    if (userInput === "g") {
-      if (player.inventory.list.length) {
-        addLog("You drop a ".concat(player.inventory.list[0].description.name));
-        player.fireEvent("drop", player.inventory.list[0]);
-      }
-    }
-
     userInput = null;
   }
 };
 
 var update = function update() {
+  (0, _animation.animation)();
+
   if (player.isDead) {
     if (gameState !== "GAMEOVER") {
       addLog("You are dead.");
@@ -27010,7 +27104,7 @@ requestAnimationFrame(gameLoop);
 var canvas = document.querySelector("#canvas");
 
 canvas.onclick = function (e) {
-  var _pxToCell = (0, _canvas.pxToCell)(e),
+  var _pxToCell = (0, _canvas2.pxToCell)(e),
       _pxToCell2 = _slicedToArray(_pxToCell, 2),
       x = _pxToCell2[0],
       y = _pxToCell2[1];
@@ -27021,7 +27115,8 @@ canvas.onclick = function (e) {
     z: (0, _cache.readCache)("z")
   });
   (0, _cache.readCacheSet)("entitiesAtLocation", locId).forEach(function (eId) {
-    var entity = _ecs.default.getEntity(eId);
+    var entity = _ecs.default.getEntity(eId); // Only do this during development
+
 
     if ("development" === "development") {
       console.log("".concat((0, _lodash.get)(entity, "appearance.char", "?"), " ").concat((0, _lodash.get)(entity, "description.name", "?")), entity.serialize());
@@ -27055,7 +27150,7 @@ canvas.onclick = function (e) {
     }
   });
 };
-},{"lodash":"node_modules/lodash/lodash.js","./lib/canvas.js":"src/lib/canvas.js","./lib/grid":"src/lib/grid.js","./state/cache":"src/state/cache.js","./lib/dungeon.js":"src/lib/dungeon.js","./systems/ai.js":"src/systems/ai.js","./systems/fov.js":"src/systems/fov.js","./systems/movement.js":"src/systems/movement.js","./systems/render.js":"src/systems/render.js","./systems/targeting":"src/systems/targeting.js","./state/ecs":"src/state/ecs.js","./systems/effects":"src/systems/effects.js","./state/components":"src/state/components.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"lodash":"node_modules/lodash/lodash.js","./lib/canvas.js":"src/lib/canvas.js","./lib/canvas":"src/lib/canvas.js","./lib/grid":"src/lib/grid.js","./state/cache":"src/state/cache.js","./lib/dungeon":"src/lib/dungeon.js","./systems/ai":"src/systems/ai.js","./systems/animation":"src/systems/animation.js","./systems/effects":"src/systems/effects.js","./systems/fov":"src/systems/fov.js","./systems/movement":"src/systems/movement.js","./systems/render":"src/systems/render.js","./systems/targeting":"src/systems/targeting.js","./state/ecs":"src/state/ecs.js","./state/components":"src/state/components.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -27083,7 +27178,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "56713" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60845" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

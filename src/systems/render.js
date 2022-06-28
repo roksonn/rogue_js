@@ -84,7 +84,7 @@ const renderMap = () => {
       drawCellImage(entity);
     } else {
       entity.visible = false;
-      drawCellImage(entity);
+      drawCell(entity, { color: "#100" });
     }
   });
 };
