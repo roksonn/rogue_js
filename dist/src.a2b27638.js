@@ -26070,7 +26070,16 @@ var attack = function attack(entity, target) {
     amount: damage
   });
 
-  if (target.health.current <= 0) {
+  if (target.health.current <= 0 && entity.description.name === "You") {
+    if (damage < target.health.max / 2) {
+      entity.power.current += 1;
+      entity.power.max += 1;
+    }
+
+    if (entity.defense.max < target.power.max - 1) entity.defense.current += 1;
+    entity.defense.max += 1;
+    return (0, _index.addLog)("".concat(entity.description.name, " kicked a ").concat(target.description.name, " for ").concat(damage, " damage and killed it!"));
+  } else if (target.health.current <= 0) {
     return (0, _index.addLog)("".concat(entity.description.name, " kicked a ").concat(target.description.name, " for ").concat(damage, " damage and killed it!"));
   }
 
@@ -26090,8 +26099,7 @@ var movement = function movement() {
     if (entity.move.relative) {
       mx = entity.position.x + entity.move.x;
       my = entity.position.y + entity.move.y;
-    } // this is where we will run any checks to see if entity can move to new location
-    //check for blockers
+    } //check for blockers
 
 
     var blockers = []; // read from cache
@@ -26263,7 +26271,7 @@ var renderPlayerHud = function renderPlayerHud(player) {
     y: _canvas.grid.playerHud.y
   });
   (0, _canvas.drawText)({
-    text: "♥".repeat(player.health.max),
+    text: "♥".repeat(_canvas.grid.playerHud.width),
     background: "black",
     color: "#333",
     x: _canvas.grid.playerHud.x,
@@ -26273,7 +26281,7 @@ var renderPlayerHud = function renderPlayerHud(player) {
 
   if (hp > 0) {
     (0, _canvas.drawText)({
-      text: "♥".repeat(player.health.current),
+      text: "♥".repeat(hp * _canvas.grid.playerHud.width),
       background: "black",
       color: "red",
       x: _canvas.grid.playerHud.x,
@@ -26623,6 +26631,8 @@ var _ecs = _interopRequireDefault(require("./state/ecs"));
 
 var _components = require("./state/components");
 
+var _prefabs = require("./state/prefabs.js");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
@@ -26785,6 +26795,20 @@ var createDungeonLevel = function createDungeonLevel() {
 
     _ecs.default.createPrefab("ScrollFireball").add(_components.Position, tile);
   });
+
+  var enemies = _ecs.default.createQuery({
+    all: [_components.Ai]
+  });
+
+  if (-1 * (0, _cache.readCache)("z") % 5 === 0) {
+    enemies.get().forEach(function (entity) {
+      entity.defense.max += 3;
+      entity.defense.current += 3;
+      entity.power.max += 3;
+      entity.power.current += 3;
+    });
+  }
+
   var stairsUp, stairsDown;
 
   if (createStairsUp) {
@@ -27114,22 +27138,15 @@ canvas.onclick = function (e) {
     y: y,
     z: (0, _cache.readCache)("z")
   });
-  (0, _cache.readCacheSet)("entitiesAtLocation", locId).forEach(function (eId) {
-    var entity = _ecs.default.getEntity(eId); // Only do this during development
-
-
-    if ("development" === "development") {
-      console.log("".concat((0, _lodash.get)(entity, "appearance.char", "?"), " ").concat((0, _lodash.get)(entity, "description.name", "?")), entity.serialize());
-    }
-
+  (0, _cache.readCacheSet)("entitiesAtLocation", locId).forEach(function () {
     if (gameState === "TARGETING") {
-      var _entity = player.inventory.list[selectedInventoryIndex];
+      var entity = player.inventory.list[selectedInventoryIndex];
 
-      if (_entity.requiresTarget.aoeRange) {
+      if (entity.requiresTarget.aoeRange) {
         var targets = (0, _grid.circle)({
           x: x,
           y: y
-        }, _entity.requiresTarget.aoeRange).map(function (locId) {
+        }, entity.requiresTarget.aoeRange).map(function (locId) {
           return "".concat(locId, ",").concat((0, _cache.readCache)("z"));
         });
         targets.forEach(function (locId) {
@@ -27150,7 +27167,7 @@ canvas.onclick = function (e) {
     }
   });
 };
-},{"lodash":"node_modules/lodash/lodash.js","./lib/canvas.js":"src/lib/canvas.js","./lib/canvas":"src/lib/canvas.js","./lib/grid":"src/lib/grid.js","./state/cache":"src/state/cache.js","./lib/dungeon":"src/lib/dungeon.js","./systems/ai":"src/systems/ai.js","./systems/animation":"src/systems/animation.js","./systems/effects":"src/systems/effects.js","./systems/fov":"src/systems/fov.js","./systems/movement":"src/systems/movement.js","./systems/render":"src/systems/render.js","./systems/targeting":"src/systems/targeting.js","./state/ecs":"src/state/ecs.js","./state/components":"src/state/components.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"lodash":"node_modules/lodash/lodash.js","./lib/canvas.js":"src/lib/canvas.js","./lib/canvas":"src/lib/canvas.js","./lib/grid":"src/lib/grid.js","./state/cache":"src/state/cache.js","./lib/dungeon":"src/lib/dungeon.js","./systems/ai":"src/systems/ai.js","./systems/animation":"src/systems/animation.js","./systems/effects":"src/systems/effects.js","./systems/fov":"src/systems/fov.js","./systems/movement":"src/systems/movement.js","./systems/render":"src/systems/render.js","./systems/targeting":"src/systems/targeting.js","./state/ecs":"src/state/ecs.js","./state/components":"src/state/components.js","./state/prefabs.js":"src/state/prefabs.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -27178,7 +27195,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60845" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "51943" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

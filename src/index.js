@@ -1,4 +1,4 @@
-import { get, sample, times } from "lodash";
+import { sample, times, get } from "lodash";
 import "./lib/canvas.js";
 import { grid, pxToCell } from "./lib/canvas";
 import { toCell, toLocId, circle } from "./lib/grid";
@@ -19,7 +19,8 @@ import { movement } from "./systems/movement";
 import { render } from "./systems/render";
 import { targeting } from "./systems/targeting";
 import ecs from "./state/ecs";
-import { IsInFov, Move, Position, Ai } from "./state/components";
+import { IsInFov, Move, Position, Ai, Description } from "./state/components";
+import { goblin } from "./state/prefabs.js";
 
 export let messageLog = ["", "You find yourself in a dark room...", ""];
 export const addLog = (text) => {
@@ -127,6 +128,19 @@ const createDungeonLevel = ({
     const tile = sample(openTiles);
     ecs.createPrefab("ScrollFireball").add(Position, tile);
   });
+
+  const enemies = ecs.createQuery({
+    all: [Ai],
+  });
+
+  if ((-1 * readCache("z")) % 5 === 0) {
+    enemies.get().forEach((entity) => {
+      entity.defense.max += 3;
+      entity.defense.current += 3;
+      entity.power.max += 3;
+      entity.power.current += 3;
+    });
+  }
 
   let stairsUp, stairsDown;
 
@@ -427,21 +441,7 @@ canvas.onclick = (e) => {
   const [x, y] = pxToCell(e);
   const locId = toLocId({ x, y, z: readCache("z") });
 
-  readCacheSet("entitiesAtLocation", locId).forEach((eId) => {
-    const entity = ecs.getEntity(eId);
-
-    // Only do this during development
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `${get(entity, "appearance.char", "?")} ${get(
-          entity,
-          "description.name",
-          "?"
-        )}`,
-        entity.serialize()
-      );
-    }
-
+  readCacheSet("entitiesAtLocation", locId).forEach(() => {
     if (gameState === "TARGETING") {
       const entity = player.inventory.list[selectedInventoryIndex];
       if (entity.requiresTarget.aoeRange) {

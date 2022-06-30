@@ -111,7 +111,7 @@ const renderPlayerHud = (player) => {
   });
 
   drawText({
-    text: "♥".repeat(player.health.max),
+    text: "♥".repeat(grid.playerHud.width),
     background: "black",
     color: "#333",
     x: grid.playerHud.x,
@@ -122,7 +122,7 @@ const renderPlayerHud = (player) => {
 
   if (hp > 0) {
     drawText({
-      text: "♥".repeat(player.health.current),
+      text: "♥".repeat(hp * grid.playerHud.width),
       background: "black",
       color: "red",
       x: grid.playerHud.x,

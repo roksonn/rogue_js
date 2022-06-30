@@ -14,7 +14,18 @@ const attack = (entity, target) => {
   const damage = entity.power.current - target.defense.current;
   target.fireEvent("take-damage", { amount: damage });
 
-  if (target.health.current <= 0) {
+  if (target.health.current <= 0 && entity.description.name === "You") {
+    if (damage < target.health.max / 2) {
+      entity.power.current += 1;
+      entity.power.max += 1;
+    }
+    if (entity.defense.max < target.power.max - 1) entity.defense.current += 1;
+    entity.defense.max += 1;
+
+    return addLog(
+      `${entity.description.name} kicked a ${target.description.name} for ${damage} damage and killed it!`
+    );
+  } else if (target.health.current <= 0) {
     return addLog(
       `${entity.description.name} kicked a ${target.description.name} for ${damage} damage and killed it!`
     );
@@ -39,8 +50,6 @@ export const movement = () => {
       mx = entity.position.x + entity.move.x;
       my = entity.position.y + entity.move.y;
     }
-
-    // this is where we will run any checks to see if entity can move to new location
 
     //check for blockers
     const blockers = [];
