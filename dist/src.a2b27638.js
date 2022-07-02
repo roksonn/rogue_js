@@ -26074,10 +26074,15 @@ var attack = function attack(entity, target) {
     if (damage < target.health.max / 2) {
       entity.power.current += 1;
       entity.power.max += 1;
+      (0, _index.addLog)("Your power increases! (power: +1)");
     }
 
-    if (entity.defense.max < target.power.max - 1) entity.defense.current += 1;
-    entity.defense.max += 1;
+    if (entity.defense.max < target.power.max - 1) {
+      entity.defense.current += 1;
+      entity.defense.max += 1;
+      (0, _index.addLog)("Your defense increases! (defense: +1)");
+    }
+
     return (0, _index.addLog)("".concat(entity.description.name, " kicked a ").concat(target.description.name, " for ").concat(damage, " damage and killed it!"));
   } else if (target.health.current <= 0) {
     return (0, _index.addLog)("".concat(entity.description.name, " kicked a ").concat(target.description.name, " for ").concat(damage, " damage and killed it!"));
@@ -26159,7 +26164,7 @@ exports.movement = movement;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.render = void 0;
+exports.render = exports.clearMap = void 0;
 
 var _lodash = require("lodash");
 
@@ -26216,6 +26221,8 @@ var layer400Entities = _ecs.default.createQuery({
 var clearMap = function clearMap() {
   (0, _canvas.clearCanvas)(_canvas.grid.map.x - 1, _canvas.grid.map.y, _canvas.grid.map.width + 1, _canvas.grid.map.height);
 };
+
+exports.clearMap = clearMap;
 
 var renderMap = function renderMap() {
   clearMap();
@@ -26631,8 +26638,6 @@ var _ecs = _interopRequireDefault(require("./state/ecs"));
 
 var _components = require("./state/components");
 
-var _prefabs = require("./state/prefabs.js");
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
@@ -26800,13 +26805,14 @@ var createDungeonLevel = function createDungeonLevel() {
     all: [_components.Ai]
   });
 
-  if (-1 * (0, _cache.readCache)("z") % 5 === 0) {
+  if (-1 * (0, _cache.readCache)("z") === 3) {
     enemies.get().forEach(function (entity) {
       entity.defense.max += 3;
       entity.defense.current += 3;
       entity.power.max += 3;
       entity.power.current += 3;
     });
+    addLog("The enemies are getting stronger!");
   }
 
   var stairsUp, stairsDown;
@@ -26916,7 +26922,7 @@ var processUserInput = function processUserInput() {
   if (gameState === "GAME") {
     if (userInput === ">") {
       if ((0, _grid.toLocId)(player.position) == (0, _cache.readCache)("floors.".concat((0, _cache.readCache)("z"), ".stairsDown"))) {
-        addLog("You descend deeper into the dungeon");
+        addLog("You climb from the depths of the dungeon");
         goToDungeonLevel((0, _cache.readCache)("z") - 1);
       } else {
         addLog("There are no stairs to descend");
@@ -26925,7 +26931,7 @@ var processUserInput = function processUserInput() {
 
     if (userInput === "<") {
       if ((0, _grid.toLocId)(player.position) == (0, _cache.readCache)("floors.".concat((0, _cache.readCache)("z"), ".stairsUp"))) {
-        addLog("You climb from the depths of the dungeon");
+        addLog("You descend deeper into the dungeon");
         goToDungeonLevel((0, _cache.readCache)("z") + 1);
       } else {
         addLog("There are no stairs to climb");
@@ -27083,6 +27089,18 @@ var update = function update() {
     return;
   }
 
+  if (-1 * (0, _cache.readCache)("z") === 4) {
+    if (gameState !== "GAMEOVER") {
+      addLog("You ESCAPED!");
+      (0, _render.render)(player);
+      (0, _render.clearMap)();
+    }
+
+    exports.gameState = gameState = "GAMEOVER";
+    processUserInput();
+    return;
+  }
+
   if (playerTurn && userInput && gameState === "TARGETING") {
     processUserInput();
     (0, _render.render)(player);
@@ -27167,7 +27185,7 @@ canvas.onclick = function (e) {
     }
   });
 };
-},{"lodash":"node_modules/lodash/lodash.js","./lib/canvas.js":"src/lib/canvas.js","./lib/canvas":"src/lib/canvas.js","./lib/grid":"src/lib/grid.js","./state/cache":"src/state/cache.js","./lib/dungeon":"src/lib/dungeon.js","./systems/ai":"src/systems/ai.js","./systems/animation":"src/systems/animation.js","./systems/effects":"src/systems/effects.js","./systems/fov":"src/systems/fov.js","./systems/movement":"src/systems/movement.js","./systems/render":"src/systems/render.js","./systems/targeting":"src/systems/targeting.js","./state/ecs":"src/state/ecs.js","./state/components":"src/state/components.js","./state/prefabs.js":"src/state/prefabs.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"lodash":"node_modules/lodash/lodash.js","./lib/canvas.js":"src/lib/canvas.js","./lib/canvas":"src/lib/canvas.js","./lib/grid":"src/lib/grid.js","./state/cache":"src/state/cache.js","./lib/dungeon":"src/lib/dungeon.js","./systems/ai":"src/systems/ai.js","./systems/animation":"src/systems/animation.js","./systems/effects":"src/systems/effects.js","./systems/fov":"src/systems/fov.js","./systems/movement":"src/systems/movement.js","./systems/render":"src/systems/render.js","./systems/targeting":"src/systems/targeting.js","./state/ecs":"src/state/ecs.js","./state/components":"src/state/components.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -27195,7 +27213,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "51943" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49259" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

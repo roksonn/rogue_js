@@ -18,9 +18,13 @@ const attack = (entity, target) => {
     if (damage < target.health.max / 2) {
       entity.power.current += 1;
       entity.power.max += 1;
+      addLog(`Your power increases! (power: +1)`);
     }
-    if (entity.defense.max < target.power.max - 1) entity.defense.current += 1;
-    entity.defense.max += 1;
+    if (entity.defense.max < target.power.max - 1) {
+      entity.defense.current += 1;
+      entity.defense.max += 1;
+      addLog(`Your defense increases! (defense: +1)`);
+    }
 
     return addLog(
       `${entity.description.name} kicked a ${target.description.name} for ${damage} damage and killed it!`

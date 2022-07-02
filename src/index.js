@@ -16,11 +16,10 @@ import { animation } from "./systems/animation";
 import { effects } from "./systems/effects";
 import { fov } from "./systems/fov";
 import { movement } from "./systems/movement";
-import { render } from "./systems/render";
+import { render, clearMap } from "./systems/render";
 import { targeting } from "./systems/targeting";
 import ecs from "./state/ecs";
-import { IsInFov, Move, Position, Ai, Description } from "./state/components";
-import { goblin } from "./state/prefabs.js";
+import { IsInFov, Move, Position, Ai } from "./state/components";
 
 export let messageLog = ["", "You find yourself in a dark room...", ""];
 export const addLog = (text) => {
@@ -133,13 +132,14 @@ const createDungeonLevel = ({
     all: [Ai],
   });
 
-  if ((-1 * readCache("z")) % 5 === 0) {
+  if (-1 * readCache("z") === 3) {
     enemies.get().forEach((entity) => {
       entity.defense.max += 3;
       entity.defense.current += 3;
       entity.power.max += 3;
       entity.power.current += 3;
     });
+    addLog(`The enemies are getting stronger!`);
   }
 
   let stairsUp, stairsDown;
@@ -245,7 +245,7 @@ const processUserInput = () => {
         toLocId(player.position) ==
         readCache(`floors.${readCache("z")}.stairsDown`)
       ) {
-        addLog("You descend deeper into the dungeon");
+        addLog("You climb from the depths of the dungeon");
         goToDungeonLevel(readCache("z") - 1);
       } else {
         addLog("There are no stairs to descend");
@@ -257,7 +257,7 @@ const processUserInput = () => {
         toLocId(player.position) ==
         readCache(`floors.${readCache("z")}.stairsUp`)
       ) {
-        addLog("You climb from the depths of the dungeon");
+        addLog("You descend deeper into the dungeon");
         goToDungeonLevel(readCache("z") + 1);
       } else {
         addLog("There are no stairs to climb");
@@ -385,6 +385,17 @@ const update = () => {
     if (gameState !== "GAMEOVER") {
       addLog("You are dead.");
       render(player);
+    }
+    gameState = "GAMEOVER";
+    processUserInput();
+    return;
+  }
+
+  if (-1 * readCache("z") === 4) {
+    if (gameState !== "GAMEOVER") {
+      addLog("You ESCAPED!");
+      render(player);
+      clearMap();
     }
     gameState = "GAMEOVER";
     processUserInput();

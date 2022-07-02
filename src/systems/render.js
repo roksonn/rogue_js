@@ -45,7 +45,7 @@ const layer400Entities = ecs.createQuery({
   all: [Position, Appearance, Layer400, IsInFov],
 });
 
-const clearMap = () => {
+export const clearMap = () => {
   clearCanvas(grid.map.x - 1, grid.map.y, grid.map.width + 1, grid.map.height);
 };
 
